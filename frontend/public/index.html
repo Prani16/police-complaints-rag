@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Police Complaints Assistant · RAG</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Police Complaints Assistant</h1>
+      <p class="sub">Answers from 10 documents on FIRs, Zero FIR, arrest safeguards, custodial deaths and Police Complaints Authorities, with citations.</p>
+    </div>
+    <button id="infoBtn" class="ghost" type="button" aria-expanded="false">About the system</button>
+  </header>
+
+  <section id="infoPanel" class="info" hidden></section>
+
+  <main id="chat" aria-live="polite">
+    <div class="empty" id="empty">
+      <p>Try asking:</p>
+      <div class="examples">
+        <button type="button">What can I do if the police refuse to register my FIR?</button>
+        <button type="button">How fast must a Zero FIR be transferred?</button>
+        <button type="button">What must an arrest memo contain under D.K. Basu?</button>
+        <button type="button">When must the NHRC be told about a custodial death?</button>
+        <button type="button">Who handles complaints against an SP?</button>
+      </div>
+    </div>
+  </main>
+
+  <form id="ask" class="ask" autocomplete="off">
+    <input id="q" name="q" placeholder="Ask about police complaints, FIRs, arrests…" maxlength="1000" required>
+    <button id="send" type="submit">Ask</button>
+  </form>
+  <p class="foot">General information from a practice corpus. This is not legal advice.</p>
+
+  <template id="tplAnswer">
+    <article class="turn">
+      <div class="q"></div>
+      <div class="a"><div class="body"></div><div class="meta"></div></div>
+      <div class="sources"></div>
+    </article>
+  </template>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

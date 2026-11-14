@@ -1,0 +1,51 @@
+:root {
+  --bg: #f6f5f1; --card: #ffffff; --ink: #1d2433; --muted: #667085; --line: #e4e2dc;
+  --accent: #1f4e8c; --accent-soft: #e8eef8; --cited: #f3f8ee; --cited-line: #7aa35a; --warn: #9a3412;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171d; --card: #1c2028; --ink: #e7e9ee; --muted: #9aa3b2; --line: #2c323d;
+    --accent: #8fb4ec; --accent-soft: #233148; --cited: #1f2a1c; --cited-line: #7aa35a; --warn: #f0a37a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0 auto; max-width: 900px; padding: 24px 20px 120px; background: var(--bg); color: var(--ink); line-height: 1.55; }
+.top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+h1 { font-size: 1.45rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { margin: 0; color: var(--muted); font-size: .92rem; max-width: 60ch; }
+button { font: inherit; cursor: pointer; }
+.ghost { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
+.info { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; font-size: .9rem; display: grid; gap: 4px; }
+.info ul { margin: 8px 0 0; padding-left: 18px; }
+.type { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
+.empty { margin-top: 36px; color: var(--muted); }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.examples button { background: var(--card); border: 1px solid var(--line); color: var(--ink); border-radius: 999px; padding: 7px 14px; font-size: .9rem; }
+.examples button:hover { border-color: var(--accent); }
+.turn { margin-top: 28px; }
+.q { font-weight: 600; margin-bottom: 8px; }
+.a { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; }
+.a p { margin: 0 0 8px; } .a ul { margin: 4px 0 8px; padding-left: 20px; }
+.notfound { color: var(--warn); }
+.thinking { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+.meta { color: var(--muted); font-size: .76rem; margin-top: 6px; }
+a.cite { display: inline-block; min-width: 1.35em; text-align: center; font-size: .72rem; font-weight: 600; text-decoration: none;
+  background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 0 4px; margin: 0 1px; vertical-align: 2px; }
+.sources h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+.src { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; padding: 8px 12px; font-size: .88rem; transition: box-shadow .3s; }
+.src.cited { background: var(--cited); border-left: 3px solid var(--cited-line); }
+.src.flash { box-shadow: 0 0 0 3px var(--accent); }
+.src summary { display: flex; gap: 8px; align-items: center; cursor: pointer; list-style: none; }
+.src summary::-webkit-details-marker { display: none; }
+.src .n { font-weight: 700; color: var(--accent); min-width: 1.2em; }
+.src .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src .score { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+.src .where { color: var(--muted); font-size: .78rem; margin: 6px 0; }
+.src pre { white-space: pre-wrap; font-family: inherit; margin: 0; font-size: .85rem; max-height: 260px; overflow: auto; }
+.error { color: var(--warn); }
+.ask { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); width: min(860px, calc(100% - 32px)); display: flex; gap: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+.ask input { flex: 1; border: none; outline: none; background: transparent; color: var(--ink); font: inherit; padding: 6px 8px; }
+.ask button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 6px 18px; font-weight: 600; }
+.ask button:disabled { opacity: .5; cursor: wait; }
+.foot { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; color: var(--muted); font-size: .72rem; margin: 0; }

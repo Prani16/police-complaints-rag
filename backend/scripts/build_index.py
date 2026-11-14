@@ -34,6 +34,7 @@ def main() -> None:
     print(f"embedded : {len(chunks)} chunks in {t1 - t0:.1f}s")
     print(f"store    : Qdrant [{store.mode}] collection '{store.collection}' -> {store.count()} points")
     store.client.close()  # release the embedded-mode file lock cleanly
+    get_store.cache_clear()  # a later get_store() in the same process reopens it
 
 
 if __name__ == "__main__":
