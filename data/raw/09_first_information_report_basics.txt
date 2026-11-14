@@ -1,0 +1,63 @@
+FIRST INFORMATION REPORT (FIR) - BASICS FOR CITIZENS
+====================================================
+Summary notes (paraphrased from the Wikipedia article "First information report", CC BY-SA 4.0, and general explainers on FIR registration).
+
+
+WHAT IS AN FIR?
+
+A First Information Report (FIR) is a written document prepared by the police when they receive information about the commission of an offence. FIRs are used in several South and Southeast Asian countries, including India, Bangladesh, Pakistan, Myanmar and Singapore. In most of these countries an FIR is registered for cognizable offences, which are serious offences such as murder, rape or robbery for which the police may arrest without a warrant. In Singapore the system covers any criminal offence.
+
+The term "FIR" is not defined in the Indian Penal Code, the Bharatiya Nyaya Sanhita, the CrPC or the BNSS. It refers to information recorded under Section 154 CrPC, now Section 173 BNSS.
+
+
+WHO CAN FILE AN FIR?
+
+Usually the victim, or someone acting on the victim's behalf, files the complaint. However, anyone who knows about the commission of a cognizable offence can file an FIR, including a police officer. Information can be given orally or in writing.
+
+
+WHAT ARE THE POLICE REQUIRED TO DO?
+
+  - If the information is given orally, the police must write it down.
+  - The complainant can ask for the recorded information to be read back.
+  - The person giving the information must sign the record.
+  - The complainant is entitled to a free copy of the FIR.
+
+
+WHY THE FIR MATTERS
+
+Registration of an FIR sets the criminal justice process in motion. In most cases the police begin investigation only after the FIR is registered. An FIR records the date, time and place of the incident, details of the incident, and descriptions of the people involved.
+
+
+NON-COGNIZABLE OFFENCES
+
+For non-cognizable offences (less serious offences where the police cannot arrest without a warrant), the police do not register an FIR. The information is entered in the station diary or a register, sometimes called a Non-Cognizable Report (NCR), and the informant is referred to the Magistrate. The police need the Magistrate's permission to investigate a non-cognizable offence.
+
+
+THREE REGISTERS IN A POLICE STATION
+
+Every complaint received at a police station is recorded in registers kept at the station:
+  1. the daily diary (general diary / station diary),
+  2. the register of complaints, and
+  3. the register of FIRs.
+
+
+TYPES OF FIR-RELATED REPORTS
+
+  - Regular FIR: registered at the police station with territorial jurisdiction.
+  - Zero FIR: registered at any police station regardless of jurisdiction, then transferred.
+  - e-FIR: information given by electronic communication, to be signed within three days.
+  - Non-Cognizable Report (NCR): for non-cognizable offences.
+  - Counter FIR: an FIR lodged by the opposite party about the same incident.
+
+
+WHAT TO DO IF THE POLICE REFUSE TO REGISTER AN FIR
+
+  Step 1: Insist politely and mention that registration is mandatory for cognizable offences (Lalita Kumari v. Govt. of U.P., 2014).
+  Step 2: Send the substance of the complaint in writing, by post, to the Superintendent of Police (Section 173(4) BNSS).
+  Step 3: If still no action, apply to the Magistrate.
+  Step 4: Complain about the officer's conduct to the Police Complaints Authority or, for serious human rights violations, to the State or National Human Rights Commission.
+
+
+QUASHING OF FIRs
+
+High Courts can quash an FIR in limited situations. Guidelines for this were laid down by the Supreme Court in State of Haryana v. Bhajan Lal (1992).

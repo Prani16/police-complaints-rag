@@ -1,0 +1,18 @@
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# generated artefacts (rebuilt by scripts/ingest.py and scripts/build_index.py)
+data/processed/
+data/qdrant/
+backend/.cache/
+
+# node
+node_modules/
+
+# secrets
+.env
+*.key.json
