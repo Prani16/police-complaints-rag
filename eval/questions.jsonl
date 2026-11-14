@@ -1,0 +1,18 @@
+{"id": "q01", "question": "What can I do if the police station refuses to register my FIR?", "expected_doc": ["07_bnss_section_173_fir", "09_first_information_report_basics", "01_lalita_kumari_fir_guidelines"], "must_contain": ["Superintendent of Police"]}
+{"id": "q02", "question": "Within how many hours must a Zero FIR be transferred to the jurisdictional police station?", "expected_doc": ["08_zero_fir_sop"], "must_contain": ["24 hours"]}
+{"id": "q03", "question": "How long does a preliminary enquiry under Section 173(3) BNSS take and who must permit it?", "expected_doc": ["07_bnss_section_173_fir"], "must_contain": ["14 days"]}
+{"id": "q04", "question": "In which kinds of cases did the Supreme Court allow a preliminary inquiry before registering an FIR?", "expected_doc": ["01_lalita_kumari_fir_guidelines"], "must_contain": ["Matrimonial"]}
+{"id": "q05", "question": "Who must witness and sign the arrest memo?", "expected_doc": ["06_dk_basu_arrest_guidelines"], "must_contain": ["witness"]}
+{"id": "q06", "question": "How often must an arrested person be medically examined while in custody?", "expected_doc": ["06_dk_basu_arrest_guidelines"], "must_contain": ["48 hours"]}
+{"id": "q07", "question": "How quickly must a custodial death be reported to the NHRC?", "expected_doc": ["04_nhrc_custodial_death_reporting"], "must_contain": ["24 hours"]}
+{"id": "q08", "question": "By when must the post-mortem and magisterial inquiry reports on a death in custody reach the human rights commission?", "expected_doc": ["04_nhrc_custodial_death_reporting"], "must_contain": ["two months"]}
+{"id": "q09", "question": "Who heads the State Police Complaints Authority and what does it look into?", "expected_doc": ["02_prakash_singh_police_reform_directives", "05_police_complaints_authority_india"], "must_contain": ["retired"]}
+{"id": "q10", "question": "Where do I complain about misconduct by a police inspector in my district?", "expected_doc": ["05_police_complaints_authority_india", "02_prakash_singh_police_reform_directives"], "must_contain": ["district"]}
+{"id": "q11", "question": "Can I file an FIR online by email and do I need to sign it?", "expected_doc": ["07_bnss_section_173_fir", "08_zero_fir_sop"], "must_contain": ["three days"]}
+{"id": "q12", "question": "What does an NHRC investigating officer check when enquiring into an encounter killing?", "expected_doc": ["03_nhrc_spot_enquiry_handbook_notes"], "must_contain": ["force"]}
+{"id": "q13", "question": "How many states had set up police complaints authorities through Police Acts according to the Justice Thomas committee?", "expected_doc": ["10_lok_sabha_q2277_police_complaints_authority"], "must_contain": ["12"]}
+{"id": "q14", "question": "Which BNSS section now covers the right to meet a lawyer during interrogation?", "expected_doc": ["06_dk_basu_arrest_guidelines"], "must_contain": ["38"]}
+{"id": "q15", "question": "What is the minimum tenure of a DGP under the Supreme Court's police reform directions?", "expected_doc": ["02_prakash_singh_police_reform_directives"], "must_contain": ["two years"]}
+{"id": "q16", "question": "Must a woman's complaint about a sexual offence be recorded by a woman officer?", "expected_doc": ["07_bnss_section_173_fir"], "must_contain": ["woman police officer"]}
+{"id": "n01", "question": "What is the fee for renewing a driving licence in Tamil Nadu?", "expected_doc": [], "must_contain": [], "out_of_scope": true}
+{"id": "n02", "question": "Who won the IPL in 2024?", "expected_doc": [], "must_contain": [], "out_of_scope": true}

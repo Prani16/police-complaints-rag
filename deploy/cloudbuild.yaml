@@ -1,0 +1,89 @@
+# Cloud Build pipeline: build both images -> push to Artifact Registry ->
+# deploy backend (private) and frontend (public) to Cloud Run.
+#
+#   gcloud builds submit --config deploy/cloudbuild.yaml .
+# (or use deploy/deploy.sh, which fills in the substitutions)
+substitutions:
+  _REGION: asia-south1
+  _REPO: rag
+  _BACKEND: rag-backend
+  _FRONTEND: rag-frontend
+  _GEMINI_MODEL: gemini-3.5-flash-lite      # set gemini-4-argon for best quality
+  _MIN_INSTANCES: "0"                        # set "1" on demo day to avoid cold starts
+  _BACKEND_SA: rag-backend-sa
+  _FRONTEND_SA: rag-frontend-sa
+
+options:
+  machineType: E2_HIGHCPU_8   # embedding the corpus at build time needs CPU
+  diskSizeGb: 100
+  logging: CLOUD_LOGGING_ONLY
+timeout: 3600s
+
+steps:
+  - id: build-backend
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "backend/Dockerfile",
+           "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$BUILD_ID", "."]
+
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$BUILD_ID", "frontend"]
+
+  - id: push-backend
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-backend"]
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$BUILD_ID"]
+
+  - id: push-frontend
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-frontend"]
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$BUILD_ID"]
+
+  - id: deploy-backend
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    waitFor: ["push-backend"]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_BACKEND}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$BUILD_ID
+      - --region=${_REGION}
+      - --service-account=${_BACKEND_SA}@$PROJECT_ID.iam.gserviceaccount.com
+      - --no-allow-unauthenticated        # only the frontend may call it
+      - --memory=8Gi
+      - --cpu=2
+      - --cpu-boost                       # faster model loading on cold start
+      - --concurrency=4
+      - --timeout=300
+      - --min-instances=${_MIN_INSTANCES}
+      - --max-instances=3
+      - --set-env-vars=GEMINI_MODEL=${_GEMINI_MODEL}
+      - --set-secrets=GEMINI_API_KEY=gemini-api-key:latest
+
+  - id: deploy-frontend
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    waitFor: ["push-frontend", "deploy-backend"]
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        BACKEND_URL=$(gcloud run services describe ${_BACKEND} --region=${_REGION} --format='value(status.url)')
+        # let the frontend's service account (and only it) invoke the backend
+        gcloud run services add-iam-policy-binding ${_BACKEND} --region=${_REGION} \
+          --member=serviceAccount:${_FRONTEND_SA}@$PROJECT_ID.iam.gserviceaccount.com \
+          --role=roles/run.invoker >/dev/null
+        gcloud run deploy ${_FRONTEND} \
+          --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$BUILD_ID \
+          --region=${_REGION} \
+          --service-account=${_FRONTEND_SA}@$PROJECT_ID.iam.gserviceaccount.com \
+          --allow-unauthenticated \
+          --memory=512Mi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300 \
+          --set-env-vars=BACKEND_URL=$${BACKEND_URL},BACKEND_AUTH=true
+        echo "Frontend: $(gcloud run services describe ${_FRONTEND} --region=${_REGION} --format='value(status.url)')"
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$BUILD_ID
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$BUILD_ID
