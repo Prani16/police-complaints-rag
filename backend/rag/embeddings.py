@@ -44,9 +44,19 @@ class QwenEmbedder(Embedder):
         from sentence_transformers import SentenceTransformer
 
         log.info("loading embedding model %s", model_name)
-        self.model = SentenceTransformer(model_name, device=_device())
+        device = _device()
+        kwargs = {}
+        if device == "cpu":
+            # The checkpoint is stored in bfloat16. Most laptop/cloud CPUs have no
+            # fast bf16 kernels, so bf16 inference there is many times slower.
+            import torch
+
+            kwargs["model_kwargs"] = {"dtype": torch.float32}
+        self.model = SentenceTransformer(model_name, device=device, **kwargs)
         self.name = model_name
-        self.dim = self.model.get_sentence_embedding_dimension()
+        get_dim = getattr(self.model, "get_embedding_dimension", None) or \
+            self.model.get_sentence_embedding_dimension
+        self.dim = get_dim()
         self.batch_size = batch_size
 
     def embed_documents(self, texts):

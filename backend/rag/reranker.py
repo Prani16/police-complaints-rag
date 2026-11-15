@@ -42,8 +42,9 @@ class QwenReranker(Reranker):
         self.torch = torch
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tok = AutoTokenizer.from_pretrained(model_name, padding_side="left")
+        # float32 on CPU: the checkpoint is bf16, which is very slow on most CPUs
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+            model_name, dtype=torch.float16 if self.device == "cuda" else torch.float32
         ).to(self.device).eval()
         self.yes = self.tok.convert_tokens_to_ids("yes")
         self.no = self.tok.convert_tokens_to_ids("no")
