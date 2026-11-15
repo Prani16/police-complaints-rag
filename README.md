@@ -70,7 +70,7 @@ cp .env.example .env            # then paste your GEMINI_API_KEY into .env
 # backend
 cd backend
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 python -m scripts.ingest        # Part 1 -> data/processed/chunks.jsonl
 python -m scripts.build_index   # Part 2 -> data/qdrant/ (downloads Qwen3 models on first run)

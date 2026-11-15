@@ -34,7 +34,7 @@ class QwenReranker(Reranker):
                "\"no\".<|im_end|>\n<|im_start|>user\n")
     _SUFFIX = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
-    def __init__(self, model_name: str, max_length: int = 2048, batch_size: int = 8):
+    def __init__(self, model_name: str, max_length: int = 512, batch_size: int = 4):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -50,20 +50,37 @@ class QwenReranker(Reranker):
         self.pre = self.tok.encode(self._PREFIX, add_special_tokens=False)
         self.suf = self.tok.encode(self._SUFFIX, add_special_tokens=False)
         self.max_length, self.batch_size, self.name = max_length, batch_size, model_name
+        self._keep_last = True  # compute LM-head logits for the last token only
+
+    def _last_logits(self, batch):
+        # The LM head projects onto a ~150k-token vocabulary. Doing that for
+        # every position wastes most of the compute; we only need the last one.
+        if self._keep_last:
+            try:
+                return self.model(**batch, logits_to_keep=1).logits[:, -1, :]
+            except TypeError:  # older transformers without logits_to_keep
+                self._keep_last = False
+        return self.model(**batch).logits[:, -1, :]
 
     def score(self, query, passages):
         texts = [f"<Instruct>: {RERANK_INSTRUCTION}\n<Query>: {query}\n<Document>: {p}" for p in passages]
-        out: list[float] = []
-        with self.torch.no_grad():
-            for i in range(0, len(texts), self.batch_size):
-                enc = self.tok(texts[i:i + self.batch_size], padding=False, truncation="longest_first",
-                               return_attention_mask=False,
-                               max_length=self.max_length - len(self.pre) - len(self.suf))
-                enc["input_ids"] = [self.pre + ids + self.suf for ids in enc["input_ids"]]
-                batch = self.tok.pad(enc, padding=True, return_tensors="pt").to(self.device)
-                logits = self.model(**batch).logits[:, -1, :]
+        budget = self.max_length - len(self.pre) - len(self.suf)
+        ids = [self.pre + x + self.suf for x in
+               self.tok(texts, padding=False, truncation="longest_first", return_attention_mask=False,
+                        max_length=budget)["input_ids"]]
+        # batch similar lengths together so little time is spent on padding
+        order = sorted(range(len(ids)), key=lambda i: len(ids[i]))
+        out = [0.0] * len(ids)
+        with self.torch.inference_mode():
+            for s in range(0, len(order), self.batch_size):
+                idx = order[s:s + self.batch_size]
+                batch = self.tok.pad({"input_ids": [ids[i] for i in idx]}, padding=True,
+                                     return_tensors="pt").to(self.device)
+                logits = self._last_logits(batch)
                 pair = self.torch.stack([logits[:, self.no], logits[:, self.yes]], dim=1)
-                out.extend(self.torch.nn.functional.softmax(pair.float(), dim=1)[:, 1].tolist())
+                probs = self.torch.nn.functional.softmax(pair.float(), dim=1)[:, 1].tolist()
+                for i, p in zip(idx, probs):
+                    out[i] = p
         return out
 
 
@@ -84,7 +101,7 @@ class BGEReranker(Reranker):
 @lru_cache(maxsize=1)
 def get_reranker() -> Reranker:
     if settings.rerank_backend == "qwen":
-        return QwenReranker(settings.rerank_model)
+        return QwenReranker(settings.rerank_model, max_length=settings.rerank_max_tokens)
     if settings.rerank_backend == "bge":
         name = settings.rerank_model if "bge" in settings.rerank_model else "BAAI/bge-reranker-v2-m3"
         return BGEReranker(name)

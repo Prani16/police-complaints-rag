@@ -31,9 +31,18 @@ log = logging.getLogger("api")
 async def lifespan(_: FastAPI):
     # Load every model at startup (Cloud Run startup CPU boost helps here) so
     # the first user request isn't the one that pays for model loading.
+    import time
+
     r = get_retriever()
-    get_reranker()
+    rr = get_reranker()
     get_generator()
+    # Warm-up: the first forward pass of a torch model is much slower
+    # (kernel selection, memory allocation). Pay that cost here, not on the
+    # first user question.
+    t = time.perf_counter()
+    r.retrieve("How do I register an FIR?")
+    rr.score("How do I register an FIR?", ["An FIR is registered at the police station."])
+    log.info("models warmed up in %.1fs", time.perf_counter() - t)
     meta = r.store.meta()
     if meta and meta.get("embed_model") != r.embedder.name:
         log.warning("index was built with %s but querying with %s - rebuild the index!",

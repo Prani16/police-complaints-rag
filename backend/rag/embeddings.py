@@ -55,7 +55,7 @@ class QwenEmbedder(Embedder):
 
     def embed_query(self, text):
         return self.model.encode([text], prompt=QUERY_INSTRUCTION, normalize_embeddings=True,
-                                 convert_to_numpy=True)[0]
+                                 convert_to_numpy=True, show_progress_bar=False)[0]
 
 
 _WORD = re.compile(r"[a-z0-9]+")

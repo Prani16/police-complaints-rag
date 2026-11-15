@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import logging
 import re
 import time
 
@@ -14,6 +15,8 @@ from .config import settings
 from .generator import NOT_FOUND, get_generator
 from .reranker import get_reranker
 from .retriever import get_retriever
+
+log = logging.getLogger(__name__)
 
 
 def answer(question: str, top_k: int | None = None) -> dict:
@@ -43,6 +46,8 @@ def answer(question: str, top_k: int | None = None) -> dict:
     text = NOT_FOUND if gated else gen.generate(question, [c.chunk for c in top])
     timings["generate_ms"] = (time.perf_counter() - t) * 1000
 
+    log.info("query timings: retrieve %.0fms | rerank %.0fms (%d passages) | generate %.0fms",
+             timings["retrieve_ms"], timings["rerank_ms"], len(cands), timings["generate_ms"])
     cited = {int(n) for n in re.findall(r"\[(\d+)\]", text)}
     sources = []
     for i, c in enumerate(top, 1):

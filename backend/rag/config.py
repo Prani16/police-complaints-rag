@@ -43,7 +43,10 @@ class Settings:
     # ---- retrieval + reranking (Part 3) ------------------------------------
     dense_k: int = int(_env("DENSE_K", "30"))
     sparse_k: int = int(_env("SPARSE_K", "30"))
-    rerank_candidates: int = int(_env("RERANK_CANDIDATES", "20"))
+    # 10 candidates keeps CPU reranking to a few seconds; raise on a GPU
+    rerank_candidates: int = int(_env("RERANK_CANDIDATES", "10"))
+    # passages are truncated to this many tokens for reranking (chunks are ~400)
+    rerank_max_tokens: int = int(_env("RERANK_MAX_TOKENS", "512"))
     final_k: int = int(_env("FINAL_K", "5"))
     # "qwen" = Qwen3-Reranker (default) | "bge" = bge-reranker-v2-m3 | "none"
     rerank_backend: str = _env("RERANK_BACKEND", "qwen")

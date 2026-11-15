@@ -52,12 +52,14 @@ class Generator:
         self.mode = "extractive"
         if settings.use_vertex or settings.gemini_api_key:
             from google import genai
+            from google.genai import types
 
+            http = types.HttpOptions(timeout=60_000)  # ms; fail fast instead of hanging
             if settings.use_vertex:
                 self.client = genai.Client(vertexai=True, project=settings.gcp_project or None,
-                                           location=settings.gcp_location)
+                                           location=settings.gcp_location, http_options=http)
             else:
-                self.client = genai.Client(api_key=settings.gemini_api_key)
+                self.client = genai.Client(api_key=settings.gemini_api_key, http_options=http)
             self.mode = "gemini"
         self.model = settings.gemini_model
 

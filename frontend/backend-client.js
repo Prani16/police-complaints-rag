@@ -6,7 +6,7 @@
 
 const BACKEND_URL = (process.env.BACKEND_URL || "http://localhost:8080").replace(/\/$/, "");
 const BACKEND_AUTH = process.env.BACKEND_AUTH === "true";
-const TIMEOUT_MS = Number(process.env.BACKEND_TIMEOUT_MS || 120000);
+const TIMEOUT_MS = Number(process.env.BACKEND_TIMEOUT_MS || 300000);
 
 let cachedToken = { value: null, expires: 0 };
 
