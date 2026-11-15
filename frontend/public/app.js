@@ -12,7 +12,9 @@ function render(text) {
   const lines = esc(text).split("\n");
   let html = "", inList = false;
   for (const raw of lines) {
-    const line = raw.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    const line = raw
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[\s(])\*(?!\s)([^*]+?)\*(?=[\s).,;:]|$)/g, "$1<em>$2</em>");
     const m = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
     if (m) {
       if (!inList) { html += "<ul>"; inList = true; }
@@ -34,7 +36,8 @@ function sourceCard(s, turnId) {
   el.id = `${turnId}-src-${s.n}`;
   el.innerHTML = `
     <summary><span class="n">${s.n}</span><span class="type">${esc(s.doc_type)}</span>
-      <span class="title">${esc(s.title)}</span><span class="score">${esc(score)}</span></summary>
+      <span class="title">${esc(s.title)}${s.section ? `<span class="sec"> › ${esc(s.section)}</span>` : ""}</span>
+      <span class="score">${esc(score)}</span></summary>
     <div class="where">${esc(s.source)}${where ? " · " + esc(where) : ""}</div>
     <pre>${esc(s.text)}</pre>`;
   return el;

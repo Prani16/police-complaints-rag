@@ -19,6 +19,22 @@ from .retriever import get_retriever
 log = logging.getLogger(__name__)
 
 
+def diversify(cands: list, k: int, max_per_doc: int) -> list:
+    """Take the best-ranked candidates, but no more than `max_per_doc` from any
+    one document. If that leaves fewer than k, fill up with the next best."""
+    picked, counts = [], {}
+    for c in cands:
+        doc = c.chunk["doc_id"]
+        if counts.get(doc, 0) < max_per_doc:
+            picked.append(c)
+            counts[doc] = counts.get(doc, 0) + 1
+            if len(picked) == k:
+                return picked
+    taken = {id(c) for c in picked}
+    rest = [c for c in cands if id(c) not in taken]
+    return picked + rest[:k - len(picked)]
+
+
 def answer(question: str, top_k: int | None = None) -> dict:
     top_k = top_k or settings.final_k
     timings: dict[str, float] = {}
@@ -36,7 +52,7 @@ def answer(question: str, top_k: int | None = None) -> dict:
         cands.sort(key=lambda c: c.rerank, reverse=True)
     timings["rerank_ms"] = (time.perf_counter() - t) * 1000
 
-    top = cands[:top_k]
+    top = diversify(cands, top_k, settings.max_per_doc)
     gated = scores is not None and (not top or top[0].rerank < settings.min_relevance)
     if scores is not None:  # drop weak passages so they can't be cited
         top = [c for c in top if c.rerank >= settings.min_relevance / 2] or top[:1]

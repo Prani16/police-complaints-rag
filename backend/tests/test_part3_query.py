@@ -75,3 +75,19 @@ def test_api_endpoints():
         r = client.post("/api/query", json={"question": "Who heads a district Police Complaints Authority?"})
         assert r.status_code == 200 and r.json()["sources"]
         assert client.post("/api/query", json={"question": "a"}).status_code == 422
+
+
+def test_sources_are_diverse():
+    from collections import Counter
+
+    out = pipeline.answer("What can I do if the police refuse to register my FIR?")
+    per_doc = Counter(s["source"] for s in out["sources"])
+    assert len(out["sources"]) == 5 and max(per_doc.values()) <= 2
+
+
+def test_diversify_fills_up_when_few_documents():
+    from types import SimpleNamespace as N
+
+    cands = [N(chunk={"doc_id": "a"}) for _ in range(4)] + [N(chunk={"doc_id": "b"})]
+    got = pipeline.diversify(cands, 4, 2)
+    assert [c.chunk["doc_id"] for c in got] == ["a", "a", "b", "a"]

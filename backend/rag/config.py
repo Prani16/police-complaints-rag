@@ -48,6 +48,9 @@ class Settings:
     # passages are truncated to this many tokens for reranking (chunks are ~400)
     rerank_max_tokens: int = int(_env("RERANK_MAX_TOKENS", "512"))
     final_k: int = int(_env("FINAL_K", "5"))
+    # at most this many chunks from one document in the final context, so the
+    # LLM sees several sources instead of five near-identical chunks
+    max_per_doc: int = int(_env("MAX_PER_DOC", "2"))
     # "qwen" = Qwen3-Reranker (default) | "bge" = bge-reranker-v2-m3 | "none"
     rerank_backend: str = _env("RERANK_BACKEND", "qwen")
     rerank_model: str = _env("RERANK_MODEL", "Qwen/Qwen3-Reranker-0.6B")

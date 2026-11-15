@@ -39,6 +39,7 @@ a.cite { display: inline-block; min-width: 1.35em; text-align: center; font-size
 .src summary::-webkit-details-marker { display: none; }
 .src .n { font-weight: 700; color: var(--accent); min-width: 1.2em; }
 .src .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src .sec { color: var(--muted); }
 .src .score { color: var(--muted); font-size: .75rem; white-space: nowrap; }
 .src .where { color: var(--muted); font-size: .78rem; margin: 6px 0; }
 .src pre { white-space: pre-wrap; font-family: inherit; margin: 0; font-size: .85rem; max-height: 260px; overflow: auto; }
