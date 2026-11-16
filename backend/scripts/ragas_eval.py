@@ -86,18 +86,43 @@ async def run_metric(metric, sem: asyncio.Semaphore, **kwargs) -> tuple[float | 
     async with sem:
         for attempt in range(4):
             try:
-                res = await asyncio.wait_for(metric.ascore(**kwargs), timeout=180)
+                res = await asyncio.wait_for(metric.ascore(**kwargs), timeout=90)
                 val = getattr(res, "value", res)
                 return (None, "no score") if val is None else (round(float(val), 4), None)
             except Exception as exc:  # noqa: BLE001
                 msg = str(exc)
-                transient = any(s in msg for s in ("429", "RESOURCE_EXHAUSTED", "rate", "503", "UNAVAILABLE",
-                                                   "timed out", "Timeout"))
+                # retry only real rate limits / overload, never other errors
+                transient = any(s in msg for s in ("429", "RESOURCE_EXHAUSTED", "rate limit", "Rate limit",
+                                                   "503", "UNAVAILABLE", "overloaded"))
                 if transient and attempt < 3:
-                    await asyncio.sleep(8 * 2 ** attempt)
+                    await asyncio.sleep(5 * 2 ** attempt)
                     continue
                 return None, f"{type(exc).__name__}: {msg[:200]}"
     return None, "gave up"
+
+
+async def preflight(judge_model: str, metrics: dict) -> str | None:
+    """Check the judge once before the run: one plain call (key, model name,
+    endpoint) and one tiny RAGAS metric (structured output). Returns an error
+    message, or None if the judge works."""
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=settings.gemini_api_key, base_url=GEMINI_OPENAI_URL, timeout=60)
+    try:
+        r = await client.chat.completions.create(
+            model=judge_model, messages=[{"role": "user", "content": "Reply with the word OK."}], max_tokens=20)
+        print(f"judge check 1/2: {judge_model} replied {r.choices[0].message.content!r}")
+    except Exception as exc:  # noqa: BLE001
+        return f"plain call to {judge_model} failed: {type(exc).__name__}: {str(exc)[:500]}"
+    try:
+        res = await asyncio.wait_for(metrics["faithfulness"].ascore(
+            user_input="When must a Zero FIR be transferred?",
+            response="A Zero FIR must be transferred within 24 hours.",
+            retrieved_contexts=["The Zero FIR must be transferred within 24 hours through CCTNS."]), timeout=90)
+        print(f"judge check 2/2: RAGAS faithfulness on a toy example = {getattr(res, 'value', res)}")
+    except Exception as exc:  # noqa: BLE001
+        return f"RAGAS metric call failed: {type(exc).__name__}: {str(exc)[:500]}"
+    return None
 
 
 async def ragas_for(q: dict, out: dict, metrics: dict, sem) -> tuple[dict, dict]:
@@ -174,6 +199,13 @@ async def main_async(args) -> Path:
             metrics = build_ragas(judge)
         except ImportError as exc:
             use_ragas, skip_reason = False, f"RAGAS not installed ({exc}); pip install -r requirements-eval.txt"
+    if use_ragas:
+        problem = await preflight(judge, metrics)
+        if problem:
+            print(f"\nJUDGE NOT WORKING - stopping before the run.\n{problem}\n")
+            print("Fix: check GEMINI_API_KEY, try --judge-model gemini-3.5-flash-lite, "
+                  "or run with --no-ragas for retrieval metrics only.")
+            raise SystemExit(1)
     elif args.no_ragas:
         skip_reason = "--no-ragas"
     sem = asyncio.Semaphore(args.concurrency)
@@ -215,9 +247,14 @@ async def main_async(args) -> Path:
             row.update(scores)
             if errors:
                 row["errors"] = errors
-        shown = " ".join(f"{m[:6]}={row.get(m)}" for m in RAGAS_METRICS) if use_ragas else ""
+        short = {"context_precision": "ctxP", "context_recall": "ctxR", "faithfulness": "faith",
+                 "answer_relevancy": "relev", "answer_correctness": "correct"}
+        shown = " ".join(f"{short[m]}={row.get(m)}" for m in RAGAS_METRICS) if use_ragas else ""
         print(f"[{i}/{len(qs)}] {q['id']} hit={row['hit@k']:.0f} mrr={row['mrr@k']:.2f} "
               f"p={row['precision@k']:.2f} r={row['recall@k']:.2f} {shown} ({latency:.0f} ms)")
+        if row.get("errors"):
+            first = next(iter(row["errors"].items()))
+            print(f"      metric error ({first[0]}): {first[1][:300]}")
         rows.append(row)
 
     in_rows = [r for r in rows if not r["out_of_scope"]]

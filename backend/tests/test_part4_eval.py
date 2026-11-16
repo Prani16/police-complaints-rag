@@ -52,6 +52,11 @@ def test_ragas_runner_writes_dashboard_json(tmp_path, monkeypatch):
     fake = {"context_precision": FakeMetric(0.9), "context_recall": FakeMetric(0.8), "faithfulness": FakeMetric(1.0),
             "answer_relevancy": FakeMetric(0.7), "answer_correctness": FakeMetric("boom")}
     monkeypatch.setattr(ragas_eval, "build_ragas", lambda judge: fake)
+
+    async def judge_ok(judge, metrics):
+        return None
+
+    monkeypatch.setattr(ragas_eval, "preflight", judge_ok)
     object.__setattr__(settings, "gemini_api_key", "test-key")  # enables the RAGAS branch
     try:
         args = Namespace(testset=str(settings.raw_dir.parents[1] / "eval" / "ragas_testset.jsonl"),
@@ -85,3 +90,25 @@ def test_admin_eval_endpoint_requires_key(tmp_path):
             assert r.status_code == 200 and r.json()["latest"]["summary"]["hit@k"] == 1
     finally:
         object.__setattr__(settings, "admin_password", "")
+
+
+def test_broken_judge_stops_before_the_run(tmp_path, monkeypatch):
+    import pytest
+
+    from scripts import ragas_eval
+
+    monkeypatch.setattr(ragas_eval, "build_ragas", lambda judge: {})
+
+    async def judge_broken(judge, metrics):
+        return "plain call failed: 404 model not found"
+
+    monkeypatch.setattr(ragas_eval, "preflight", judge_broken)
+    object.__setattr__(settings, "gemini_api_key", "test-key")
+    try:
+        args = Namespace(testset=str(settings.raw_dir.parents[1] / "eval" / "ragas_testset.jsonl"),
+                         out_dir=str(tmp_path), k=5, limit=2, no_ragas=False, judge_model="", concurrency=1)
+        with pytest.raises(SystemExit):
+            asyncio.run(ragas_eval.main_async(args))
+    finally:
+        object.__setattr__(settings, "gemini_api_key", "")
+    assert not (tmp_path / "latest.json").exists()
