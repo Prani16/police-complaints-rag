@@ -1,12 +1,17 @@
-"""Part 3b - rerankers.
+"""Part 3b - rerankers. A reranker reads the query and a passage *together*
+(cross-attention), which makes it more precise than the bi-encoder used for
+first-stage retrieval. Pick one with RERANK_BACKEND:
 
-Default: Qwen/Qwen3-Reranker-0.6B (Apache-2.0). It is a decoder-based
-reranker: for each (query, passage) pair it reads both together and outputs
-P("yes" | passage answers query). Cross-attention over the pair is what makes
-a reranker more precise than the bi-encoder used for first-stage retrieval.
+  fast (default) cross-encoder/ms-marco-MiniLM-L6-v2 - 22M params, Apache-2.0.
+                 ~25x smaller than Qwen3-Reranker-0.6B, so ~10 passages are
+                 scored in well under a second on a laptop CPU.
+  qwen           Qwen/Qwen3-Reranker-0.6B - best quality, decoder-based
+                 P("yes"), but slow on CPU. Use on a GPU (or 4B/8B).
+  bge            BAAI/bge-reranker-v2-m3 - multilingual cross-encoder.
+  none           keep the RRF order (offline tests).
 
-Alternatives wired in: "bge" -> BAAI/bge-reranker-v2-m3 cross-encoder,
-"none" -> keep RRF order (used by offline tests).
+Every backend returns a relevance probability in [0, 1] so the "not found"
+gate (MIN_RELEVANCE) works the same way for all of them.
 """
 from __future__ import annotations
 
@@ -85,25 +90,47 @@ class QwenReranker(Reranker):
         return out
 
 
-class BGEReranker(Reranker):
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
+class CrossEncoderReranker(Reranker):
+    """Classic BERT-style cross-encoder (MiniLM, BGE, ...): one forward pass
+    per (query, passage) pair, output passed through a sigmoid -> [0, 1]."""
+
+    def __init__(self, model_name: str, max_length: int = 512, batch_size: int = 16):
+        import torch
         from sentence_transformers import CrossEncoder
 
         log.info("loading reranker %s", model_name)
-        self.model, self.name = CrossEncoder(model_name, max_length=1024), model_name
+        self.torch = torch
+        self.model = CrossEncoder(model_name, max_length=max_length)
+        self.name, self.batch_size = model_name, batch_size
 
     def score(self, query, passages):
-        import torch
+        return self.model.predict([(query, p) for p in passages], batch_size=self.batch_size,
+                                  activation_fn=self.torch.nn.Sigmoid(),
+                                  show_progress_bar=False).tolist()
 
-        return self.model.predict([(query, p) for p in passages],
-                                  activation_fn=torch.nn.Sigmoid()).tolist()
+
+DEFAULT_MODELS = {
+    "fast": "cross-encoder/ms-marco-MiniLM-L6-v2",
+    "qwen": "Qwen/Qwen3-Reranker-0.6B",
+    "bge": "BAAI/bge-reranker-v2-m3",
+}
+
+
+def model_for(backend: str, configured: str) -> str:
+    """Use RERANK_MODEL only if it belongs to the chosen backend's family, so a
+    leftover RERANK_MODEL=Qwen/... in .env can't be loaded as a cross-encoder."""
+    is_qwen = "qwen3-reranker" in configured.lower()
+    if configured and (is_qwen == (backend == "qwen")):
+        return configured
+    return DEFAULT_MODELS[backend]
 
 
 @lru_cache(maxsize=1)
 def get_reranker() -> Reranker:
-    if settings.rerank_backend == "qwen":
-        return QwenReranker(settings.rerank_model, max_length=settings.rerank_max_tokens)
-    if settings.rerank_backend == "bge":
-        name = settings.rerank_model if "bge" in settings.rerank_model else "BAAI/bge-reranker-v2-m3"
-        return BGEReranker(name)
-    return Reranker()
+    backend = settings.rerank_backend.lower()
+    if backend not in DEFAULT_MODELS:
+        return Reranker()
+    name = model_for(backend, settings.rerank_model)
+    if backend == "qwen":
+        return QwenReranker(name, max_length=settings.rerank_max_tokens)
+    return CrossEncoderReranker(name, max_length=settings.rerank_max_tokens)

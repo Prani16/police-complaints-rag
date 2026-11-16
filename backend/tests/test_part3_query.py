@@ -91,3 +91,40 @@ def test_diversify_fills_up_when_few_documents():
     cands = [N(chunk={"doc_id": "a"}) for _ in range(4)] + [N(chunk={"doc_id": "b"})]
     got = pipeline.diversify(cands, 4, 2)
     assert [c.chunk["doc_id"] for c in got] == ["a", "a", "b", "a"]
+
+
+def test_reranker_model_selection():
+    from rag.reranker import model_for
+
+    # a leftover Qwen model name must not be loaded by the fast cross-encoder
+    assert model_for("fast", "Qwen/Qwen3-Reranker-0.6B") == "cross-encoder/ms-marco-MiniLM-L6-v2"
+    assert model_for("fast", "") == "cross-encoder/ms-marco-MiniLM-L6-v2"
+    assert model_for("fast", "cross-encoder/ms-marco-MiniLM-L12-v2") == "cross-encoder/ms-marco-MiniLM-L12-v2"
+    assert model_for("qwen", "") == "Qwen/Qwen3-Reranker-0.6B"
+    assert model_for("qwen", "Qwen/Qwen3-Reranker-4B") == "Qwen/Qwen3-Reranker-4B"
+    assert model_for("bge", "cross-encoder/ms-marco-MiniLM-L6-v2") == "cross-encoder/ms-marco-MiniLM-L6-v2"
+
+
+def test_cross_encoder_reranker_returns_probabilities(monkeypatch):
+    import sys
+    import types
+
+    import numpy as np
+
+    class FakeCE:
+        def __init__(self, name, max_length):
+            self.name, self.max_length = name, max_length
+
+        def predict(self, pairs, batch_size, activation_fn, show_progress_bar):
+            logits = np.array([len(p) / 10 - 3 for _, p in pairs])
+            return activation_fn(logits)
+
+    fake_torch = types.SimpleNamespace(nn=types.SimpleNamespace(Sigmoid=lambda: lambda x: 1 / (1 + np.exp(-x))))
+    monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(CrossEncoder=FakeCE))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    from rag.reranker import CrossEncoderReranker
+
+    r = CrossEncoderReranker("cross-encoder/ms-marco-MiniLM-L6-v2", max_length=512)
+    s = r.score("q", ["short", "a much longer and more relevant passage about FIRs"])
+    assert len(s) == 2 and all(0 <= x <= 1 for x in s) and s[1] > s[0]
+    assert r.model.max_length == 512

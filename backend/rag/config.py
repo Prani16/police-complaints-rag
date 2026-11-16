@@ -51,9 +51,11 @@ class Settings:
     # at most this many chunks from one document in the final context, so the
     # LLM sees several sources instead of five near-identical chunks
     max_per_doc: int = int(_env("MAX_PER_DOC", "2"))
-    # "qwen" = Qwen3-Reranker (default) | "bge" = bge-reranker-v2-m3 | "none"
-    rerank_backend: str = _env("RERANK_BACKEND", "qwen")
-    rerank_model: str = _env("RERANK_MODEL", "Qwen/Qwen3-Reranker-0.6B")
+    # "fast" = ms-marco-MiniLM-L6 cross-encoder (default, quick on CPU)
+    # "qwen" = Qwen3-Reranker-0.6B (best quality, needs a GPU to be quick)
+    # "bge"  = bge-reranker-v2-m3 | "none" = no reranking
+    rerank_backend: str = _env("RERANK_BACKEND", "fast")
+    rerank_model: str = _env("RERANK_MODEL", "")  # empty -> the backend's default model
     # below this reranker relevance probability we answer "not found"
     min_relevance: float = float(_env("MIN_RELEVANCE", "0.15"))
 

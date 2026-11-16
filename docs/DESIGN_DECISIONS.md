@@ -70,7 +70,7 @@ Independent benchmarks converge on 300–512 tokens with 10–20% overlap. Chrom
 
 ---
 
-## 4. Reranker: `Qwen/Qwen3-Reranker-0.6B`
+## 4. Reranker: `ms-marco-MiniLM-L6-v2` on CPU, `Qwen/Qwen3-Reranker-0.6B` on GPU
 
 A reranker reads the **query and passage together** (cross-attention). The embedder encodes them separately, so the reranker is much more precise. It reorders the top 20 hybrid candidates, and the best 5 go to Gemini.
 
@@ -87,6 +87,8 @@ Reported in the Qwen3 Embedding paper (arXiv 2506.05176, Table 4). Every reranke
 | Qwen3-Reranker-8B | 8B | 69.02 | 72.94 | 70.19 |
 
 **Why the 0.6B model:** in this setup it is the only reranker of its size that *improves* on first-stage retrieval on every listed benchmark. BGE-reranker-v2-m3, jina-v2 and gte all score *below* the no-reranker baseline on MTEB-R, so they make the ranking worse. Qwen3-Reranker-0.6B is also Apache-2.0, runs on CPU, and accepts a task instruction. The 4B model is better still (+4 MTEB-R) and is one env var away (`RERANK_MODEL=Qwen/Qwen3-Reranker-4B`) on a GPU.
+
+**Why MiniLM is the CPU default.** Qwen3-Reranker-0.6B is a 0.6B-parameter decoder. On a laptop CPU it took about 490 seconds for one question (20 passages, bf16 weights), and still tens of seconds after the float32 and last-token fixes. `cross-encoder/ms-marco-MiniLM-L6-v2` has about 22M parameters (Apache-2.0). On the sentence-transformers benchmark it scores 74.30 NDCG@10 on TREC DL 19 and 39.01 MRR@10 on MS MARCO dev, and processes about 1,800 docs/s on a V100, versus 960 for the L12 model, which scores almost the same. It is English-only and less accurate than Qwen3 on harder benchmarks, but it reranks 10 passages in well under a second on CPU, and a fast reranker that runs is better than an accurate one that times out. Set `RERANK_BACKEND=qwen` on a GPU. Compare the two on this corpus with `python -m scripts.eval`, which prints a `hybrid+rerank` row for whichever reranker is active.
 
 Paid alternatives: **Cohere Rerank 5** and **Voyage rerank-3** are strong managed APIs, but they are not free and send data out. **ColBERTv2** (late interaction) is a good option when you need token-level matching over a large index, but it means a different index type.
 
@@ -123,6 +125,6 @@ Avoid the 2.5 models (restricted access for new projects) and `-preview` endpoin
 
 - Chunking: FloTorch 2026, Chroma and NVIDIA benchmarks as summarised by PremAI, "RAG Chunking Strategies: The 2026 Benchmark Guide"; fast.io, "7 Best Chunking Strategies for RAG" (2026); tianpan.co, "Chunking Strategy Is the Hidden Load-Bearing Decision" (2026); arXiv 2606.00881, "Chunking Methods on RAG: Effectiveness vs Computational Cost"
 - Embeddings: Supermemory, "Best free embedding models in 2026" (MTEB snapshot, 16 October 2026); techsy.io, "Best embedding models for RAG"; Modal, "Top embedding models on the MTEB leaderboard"; BentoML, "A Guide to Open-Source Embedding Models"
-- Rerankers: Zhang et al., "Qwen3 Embedding: Advancing Text Embedding and Reranking Through Foundation Models", arXiv 2506.05176 (Table 4); FutureAGI, "Best Rerankers for RAG in 2026"
+- Rerankers: sentence-transformers pretrained cross-encoders table (sbert.net/docs/cross_encoder/pretrained_models.html); Zhang et al., "Qwen3 Embedding: Advancing Text Embedding and Reranking Through Foundation Models", arXiv 2506.05176 (Table 4); FutureAGI, "Best Rerankers for RAG in 2026"
 - Vector DBs: dev.to, "Qdrant vs Pinecone vs Chroma: Free Vector Database for RAG"; toolhalla.ai and agentwiki vector DB comparisons (2026)
 - Gemini: Google AI for Developers, Gemini API models page (ai.google.dev/gemini-api/docs/models), November 2026

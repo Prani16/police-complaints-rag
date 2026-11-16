@@ -8,7 +8,7 @@ A retrieval-augmented generation (RAG) assistant that answers questions about **
 | Embeddings | `Qwen3-Embedding-0.6B` (free, Apache-2.0, CPU); swap to 4B or 8B with one env var |
 | Vector DB | **Qdrant**, embedded and baked into the container (Qdrant Cloud free tier optional) |
 | Retrieval | Hybrid: dense (Qdrant) + BM25, fused with Reciprocal Rank Fusion |
-| Reranker | `Qwen3-Reranker-0.6B`, plus a relevance gate for out-of-scope questions |
+| Reranker | `ms-marco-MiniLM-L6-v2` cross-encoder (fast on CPU, default) or `Qwen3-Reranker-0.6B` (best quality, GPU), plus a relevance gate for out-of-scope questions |
 | LLM | **Gemini**: `gemini-3.5-flash-lite` for the demo, `gemini-4-argon` for best quality |
 | Frontend | **Node.js** (Express web UI + CLI) |
 | Cloud | **GCP**: Cloud Run ×2, Cloud Build, Artifact Registry, Secret Manager |
@@ -34,7 +34,7 @@ flowchart LR
     A --> H["Hybrid search<br/>dense top-30 + BM25 top-30<br/>RRF → top-20"]
     Q --> H
     B --> H
-    H --> RR["Qwen3-Reranker-0.6B<br/>→ top-5"] --> G{"relevance ≥ 0.15?"}
+    H --> RR["Reranker: MiniLM-L6 (CPU)<br/>or Qwen3-Reranker (GPU)<br/>→ top-5"] --> G{"relevance ≥ 0.15?"}
     G -- no --> NF["'Not found'<br/>(no LLM call)"]
     G -- yes --> GM["Gemini<br/>grounded answer + [n] citations"]
   end
@@ -53,7 +53,7 @@ The project was built and committed in four parts. Each one is a separate commit
 |---|---|---|
 | **1. Data & ingestion** | 10-document corpus, PDF/HTML/MD/TXT loaders with noise removal, structure-aware chunker | `data/`, `backend/rag/loaders.py`, `backend/rag/chunker.py`, `backend/scripts/ingest.py` |
 | **2. Embedding & vector store** | Qwen3 embedder, Qdrant store (embedded or remote), index builder | `backend/rag/embeddings.py`, `backend/rag/vectorstore.py`, `backend/scripts/build_index.py` |
-| **3. Query handling** | Hybrid retrieval + RRF, Qwen3 reranker, Gemini generator, FastAPI, Node.js UI + CLI | `backend/rag/{retriever,reranker,generator,pipeline}.py`, `backend/api.py`, `frontend/` |
+| **3. Query handling** | Hybrid retrieval + RRF, cross-encoder / Qwen3 reranker, Gemini generator, FastAPI, Node.js UI + CLI | `backend/rag/{retriever,reranker,generator,pipeline}.py`, `backend/api.py`, `frontend/` |
 | **4. Cloud & docs** | Dockerfiles, Cloud Build, GCP setup scripts, CI, evaluation, documentation | `backend/Dockerfile`, `frontend/Dockerfile`, `deploy/`, `eval/`, `.github/`, `docs/` |
 
 ---
@@ -145,7 +145,7 @@ Everything is set by environment variables. See [`.env.example`](.env.example). 
 |---|---|---|
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | `gemini-4-argon` for best quality |
 | `EMBED_MODEL` | `Qwen/Qwen3-Embedding-0.6B` | `…-4B` / `…-8B` on a GPU (rebuild the index after changing) |
-| `RERANK_BACKEND` / `RERANK_MODEL` | `qwen` / `Qwen/Qwen3-Reranker-0.6B` | `bge` or `none` to compare |
+| `RERANK_BACKEND` / `RERANK_MODEL` | `fast` / *(empty → backend default)* | `qwen` for best quality on a GPU, `bge`, or `none` |
 | `QDRANT_URL` | *(empty → embedded)* | set for Qdrant Cloud |
 | `CHUNK_MAX_TOKENS` / `CHUNK_OVERLAP_TOKENS` | `400` / `60` | rerun ingest and build_index after changing |
 | `MIN_RELEVANCE` | `0.15` | reranker threshold for "not found" |
@@ -163,6 +163,7 @@ Everything is set by environment variables. See [`.env.example`](.env.example). 
 | Dense search blurred exact legal identifiers (`173(3)`, `41D`, `CCTNS`) | BM25 alongside dense search, fused with RRF. The tokenizer keeps alphanumeric section numbers. |
 | The LLM tried to answer off-topic questions | Relevance gate on the reranker score: below 0.15, return "not found" without calling Gemini. |
 | Cold starts on Cloud Run (two 0.6B models on CPU) | Download models and build the index at Docker build time, use startup CPU boost and warm models at app startup, and set `MIN_INSTANCES=1` for the demo. |
+| Qwen3-Reranker-0.6B took ~490 s per question on a laptop CPU | Load models in float32 (the checkpoints are bf16, which is slow on most CPUs), compute only last-token logits, rerank 10 passages capped at 512 tokens, and add a 22M-parameter MiniLM cross-encoder as the default CPU reranker. Qwen stays one env var away for GPUs. |
 | Embedded Qdrant holds a file lock | One uvicorn worker per container (scale with Cloud Run instances), and close and reset the cached client after indexing. |
 | Calling a private Cloud Run backend from Node | Fetch an ID token from the metadata server, cache it for 50 minutes, and grant `run.invoker` only to the frontend's service account. |
 | Tests needed models and network access | A hashing embedder test double plus a hermetic `conftest.py` that builds a temporary index, so CI runs in seconds. |
