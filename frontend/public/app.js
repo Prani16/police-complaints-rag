@@ -135,6 +135,20 @@ const scopeUploads = document.getElementById("scopeUploads");
 const ALLOWED = [".pdf", ".html", ".htm", ".md", ".markdown", ".txt"];
 const MAX_MB = 10;
 
+// Read a JSON reply; if the server sent an HTML error page instead (e.g. an
+// old frontend server without the route), give an actionable message.
+async function readJson(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const hint = res.status === 404
+      ? "the frontend server doesn't know this route. Restart it (Ctrl+C, then npm start) after git pull."
+      : `the server sent an unexpected reply (HTTP ${res.status}).`;
+    throw new Error(hint);
+  }
+}
+
 function currentScope() {
   return document.querySelector('input[name="scope"]:checked')?.value || "all";
 }
@@ -183,7 +197,7 @@ async function uploadFile(file) {
       headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(file.name) },
       body: file,
     });
-    const d = await res.json();
+    const d = await readJson(res);
     if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
     await refreshUploads();
     setScope("uploads");
@@ -200,7 +214,7 @@ async function uploadFile(file) {
 async function removeUpload(d) {
   try {
     const res = await fetch(`/api/documents/${encodeURIComponent(d.doc_id)}`, { method: "DELETE" });
-    if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+    if (!res.ok) throw new Error((await readJson(res)).error || `HTTP ${res.status}`);
     setStatus(`Removed "${d.title}".`, "ok");
   } catch (e) {
     setStatus(`Could not remove ${d.title}: ${e.message}`, "err");
