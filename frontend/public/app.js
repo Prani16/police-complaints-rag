@@ -109,6 +109,7 @@ infoBtn.addEventListener("click", async () => {
   const open = panel.hidden;
   panel.hidden = !open;
   infoBtn.setAttribute("aria-expanded", String(open));
+  infoBtn.textContent = open ? "Hide system info" : "About the system";
   if (!open || panel.dataset.loaded) return;
   try {
     const d = await (await fetch("/api/info")).json();
