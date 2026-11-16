@@ -17,6 +17,7 @@ os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
 os.environ["QDRANT_URL"] = ""
 os.environ["PROCESSED_DIR"] = str(_TMP / "processed")
 os.environ["QDRANT_PATH"] = str(_TMP / "qdrant")
+os.environ["UPLOAD_DIR"] = str(_TMP / "uploads")
 
 
 @pytest.fixture(scope="session", autouse=True)

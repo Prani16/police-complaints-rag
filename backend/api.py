@@ -3,17 +3,22 @@
     uvicorn api:app --port 8080          (run from backend/)
 
 Endpoints
-  GET  /health      liveness + index status
-  GET  /api/info    models, documents and chunk counts
-  POST /api/query   {"question": "...", "top_k": 5} -> answer + citations
+  GET    /health                 liveness + index status
+  GET    /api/info               models, documents and chunk counts
+  POST   /api/query              {"question": "...", "top_k": 5, "scope": "all"|"uploads"}
+  POST   /api/upload             raw file bytes, filename in the X-Filename header
+  GET    /api/documents          every indexed document (built-in + uploads)
+  DELETE /api/documents/{doc_id} remove an uploaded document
 """
 from __future__ import annotations
 
 import logging
 from collections import Counter
 from contextlib import asynccontextmanager
+from typing import Literal
+from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -22,6 +27,7 @@ from rag.config import settings
 from rag.generator import get_generator
 from rag.reranker import get_reranker
 from rag.retriever import get_retriever
+from rag.uploads import UploadError, delete_upload, ingest_upload, is_upload, upload_doc_ids
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("api")
@@ -52,12 +58,13 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Police Complaints RAG API", version="1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "DELETE"], allow_headers=["*"])
 
 
 class Query(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
     top_k: int | None = Field(None, ge=1, le=10)
+    scope: Literal["all", "uploads"] = "all"
 
 
 @app.get("/health")
@@ -69,22 +76,65 @@ def health():
 @app.get("/api/info")
 def info():
     r = get_retriever()
-    docs = Counter((c["source"], c["title"], c["doc_type"]) for c in r.chunks)
     gen = get_generator()
     return {
         "models": {"embedding": r.embedder.name, "reranker": get_reranker().name,
                    "llm": gen.model if gen.mode == "gemini" else "none (extractive)"},
         "vector_store": f"qdrant ({r.store.mode})",
-        "documents": [{"source": s, "title": t, "type": d, "chunks": n} for (s, t, d), n in sorted(docs.items())],
+        "documents": list_documents(),
         "chunk_count": len(r.chunks),
         "settings": {"final_k": settings.final_k, "rerank_candidates": settings.rerank_candidates,
                      "min_relevance": settings.min_relevance},
     }
 
 
+def list_documents() -> list[dict]:
+    r = get_retriever()
+    docs = Counter((c["doc_id"], c["source"], c["title"], c["doc_type"]) for c in r.chunks)
+    return [{"doc_id": i, "source": s, "title": t, "type": d, "chunks": n, "uploaded": is_upload(i)}
+            for (i, s, t, d), n in sorted(docs.items(), key=lambda x: (is_upload(x[0][0]), x[0][0]))]
+
+
 @app.post("/api/query")
 def query(q: Query):
+    doc_ids = None
+    if q.scope == "uploads":
+        doc_ids = upload_doc_ids()
+        if not doc_ids:
+            raise HTTPException(status_code=400, detail="No uploaded documents yet - upload a file first.")
     try:
-        return pipeline.answer(q.question.strip(), q.top_k)
+        return pipeline.answer(q.question.strip(), q.top_k, doc_ids)
     except RuntimeError as exc:  # e.g. Gemini quota / auth problems
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/upload")
+async def upload(request: Request):
+    """Body = the raw file bytes; X-Filename = URL-encoded original file name.
+    (Raw bytes instead of multipart keeps the backend free of extra packages.)"""
+    filename = unquote(request.headers.get("x-filename", "")).strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Missing X-Filename header.")
+    data = await request.body()
+    try:
+        # embedding is CPU-heavy: run it in a worker thread, not on the event loop
+        from starlette.concurrency import run_in_threadpool
+
+        return await run_in_threadpool(ingest_upload, filename, data)
+    except UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/documents")
+def documents():
+    return list_documents()
+
+
+@app.delete("/api/documents/{doc_id}")
+def delete_document(doc_id: str):
+    try:
+        if not delete_upload(doc_id):
+            raise HTTPException(status_code=404, detail="Document not found.")
+    except UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"deleted": doc_id}

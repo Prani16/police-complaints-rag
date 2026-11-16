@@ -127,15 +127,37 @@ What gets deployed:
 - **rag-backend** (private): FastAPI, with models and Qdrant index baked into the image. Runs on 2 vCPU, 8 GiB, with startup CPU boost and scale-to-zero. `GEMINI_API_KEY` is read from Secret Manager.
 - **rag-frontend** (public): the Node.js UI. It calls the backend with a Google-signed ID token, so nobody else can reach the backend directly.
 
+## Upload your own documents
+
+You can add files to the index from the web UI without rebuilding anything:
+
+1. Click **Upload a document**, or drag a file onto the upload box. PDF, HTML, Markdown and TXT files up to 10 MB are supported.
+2. The file runs through the same pipeline as the built-in corpus: load, clean, structure-aware chunking, Qwen3 embedding, then Qdrant plus BM25. It's searchable as soon as the upload finishes.
+3. After an upload, **Search in** switches to **My uploads only**, so answers come only from your files. Switch back to **All documents** to search everything.
+4. Remove an upload with the **×** on its chip.
+
+From the CLI:
+```bash
+node cli.js upload path/to/notes.pdf
+node cli.js --uploads "What does my file say about deadlines?"
+```
+
+Uploaded files are stored in `data/uploads/` (git-ignored) and their chunks in `data/processed/chunks.jsonl`, so they survive a backend restart. Re-uploading a file with the same name replaces it. Scanned PDFs with no text layer are rejected, because there's no OCR.
+
+**On Cloud Run**, uploads live only on that container's disk. They disappear when the instance restarts, and they aren't shared between instances. For persistent shared uploads, set `QDRANT_URL` to Qdrant Cloud and store the files in a Cloud Storage bucket.
+
 ## API
 
 | Method | Path | Body / response |
 |---|---|---|
 | `GET` | `/health` | `{status, chunks, vectors}` |
 | `GET` | `/api/info` | models, vector store, documents with chunk counts |
-| `POST` | `/api/query` | `{"question": "...", "top_k": 5}` → `{answer, found, sources[n, cited, title, section, pages, text, rerank_score], models, timings_ms}` |
+| `POST` | `/api/query` | `{"question": "...", "top_k": 5, "scope": "all" \| "uploads"}` → `{answer, found, sources[n, cited, title, section, pages, text, rerank_score], models, timings_ms}` |
+| `POST` | `/api/upload` | raw file bytes, URL-encoded name in `X-Filename` → `{doc_id, title, type, chunks, seconds}` |
+| `GET` | `/api/documents` | every indexed document, with `uploaded: true/false` |
+| `DELETE` | `/api/documents/{doc_id}` | remove an uploaded document (built-in documents can't be removed) |
 
-The Node server exposes the same data at `/api/ask` and `/api/info` for the browser.
+The Node server exposes the same data at `/api/ask`, `/api/info`, `/api/upload` and `/api/documents` for the browser.
 
 ## Configuration
 
@@ -164,6 +186,7 @@ Everything is set by environment variables. See [`.env.example`](.env.example). 
 | The LLM tried to answer off-topic questions | Relevance gate on the reranker score: below 0.15, return "not found" without calling Gemini. |
 | Cold starts on Cloud Run (two 0.6B models on CPU) | Download models and build the index at Docker build time, use startup CPU boost and warm models at app startup, and set `MIN_INSTANCES=1` for the demo. |
 | Qwen3-Reranker-0.6B took ~490 s per question on a laptop CPU | Load models in float32 (the checkpoints are bf16, which is slow on most CPUs), compute only last-token logits, rerank 10 passages capped at 512 tokens, and add a 22M-parameter MiniLM cross-encoder as the default CPU reranker. Qwen stays one env var away for GPUs. |
+| Adding uploaded files without re-indexing everything | Uploads go through the same loader and chunker, are upserted into the live Qdrant collection, and the in-memory BM25 index is rebuilt and swapped in atomically under a lock, so queries running at the same time never see a half-updated index. Search scope uses a Qdrant payload filter on `doc_id`. |
 | Embedded Qdrant holds a file lock | One uvicorn worker per container (scale with Cloud Run instances), and close and reset the cached client after indexing. |
 | Calling a private Cloud Run backend from Node | Fetch an ID token from the metadata server, cache it for 50 minutes, and grant `run.invoker` only to the frontend's service account. |
 | Tests needed models and network access | A hashing embedder test double plus a hermetic `conftest.py` that builds a temporary index, so CI runs in seconds. |

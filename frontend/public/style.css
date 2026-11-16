@@ -51,3 +51,22 @@ a.cite { display: inline-block; min-width: 1.35em; text-align: center; font-size
 .ask button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 6px 18px; font-weight: 600; }
 .ask button:disabled { opacity: .5; cursor: wait; }
 .foot { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; color: var(--muted); font-size: .72rem; margin: 0; }
+
+/* ---- uploads ---- */
+.docs { margin-top: 14px; }
+.drop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 10px; padding: 10px 12px; transition: border-color .2s, background .2s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop.busy { opacity: .7; pointer-events: none; }
+.drop .hint { color: var(--muted); font-size: .82rem; }
+.status { margin: 6px 2px 0; font-size: .85rem; min-height: 1.2em; }
+.status.ok { color: var(--cited-line); } .status.err { color: var(--warn); }
+.status.busy { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
+.uploads { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.uploads li { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: .85rem; max-width: 100%; }
+.uploads .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34ch; }
+.uploads small { color: var(--muted); }
+.uploads .rm { background: none; border: none; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0 4px; border-radius: 50%; }
+.uploads .rm:hover { color: var(--warn); }
+.scope { display: flex; gap: 14px; align-items: center; margin-top: 10px; font-size: .88rem; color: var(--muted); flex-wrap: wrap; }
+.scope label { display: flex; gap: 5px; align-items: center; color: var(--ink); cursor: pointer; }
+.scope input:disabled + * , .scope label:has(input:disabled) { color: var(--muted); cursor: not-allowed; }

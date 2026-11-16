@@ -59,7 +59,7 @@ async function askQuestion(question) {
     const res = await fetch("/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, scope: currentScope() }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -125,3 +125,93 @@ infoBtn.addEventListener("click", async () => {
     panel.textContent = `Could not load system info: ${e.message}`;
   }
 });
+
+// ------------------------------------------------------------------ uploads
+const fileInput = document.getElementById("file");
+const drop = document.getElementById("drop");
+const statusEl = document.getElementById("uploadStatus");
+const uploadsEl = document.getElementById("uploads");
+const scopeUploads = document.getElementById("scopeUploads");
+const ALLOWED = [".pdf", ".html", ".htm", ".md", ".markdown", ".txt"];
+const MAX_MB = 10;
+
+function currentScope() {
+  return document.querySelector('input[name="scope"]:checked')?.value || "all";
+}
+
+function setScope(value) {
+  const radio = document.querySelector(`input[name="scope"][value="${value}"]`);
+  if (radio && !radio.disabled) radio.checked = true;
+}
+
+function setStatus(text, kind = "") {
+  statusEl.textContent = text;
+  statusEl.className = `status ${kind}`;
+}
+
+async function refreshUploads() {
+  try {
+    const docs = await (await fetch("/api/documents")).json();
+    const ups = Array.isArray(docs) ? docs.filter((d) => d.uploaded) : [];
+    uploadsEl.innerHTML = "";
+    for (const d of ups) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="type">${esc(d.type)}</span><span class="name" title="${esc(d.source)}">${esc(d.title)}</span>
+        <small>${d.chunks} chunk${d.chunks === 1 ? "" : "s"}</small>
+        <button type="button" class="rm" aria-label="Remove ${esc(d.title)}" title="Remove">×</button>`;
+      li.querySelector(".rm").addEventListener("click", () => removeUpload(d));
+      uploadsEl.appendChild(li);
+    }
+    scopeUploads.disabled = ups.length === 0;
+    if (!ups.length) setScope("all");
+    panel.dataset.loaded = "";  // "About the system" must re-fetch the document list
+  } catch {
+    /* backend not ready yet; the list stays empty */
+  }
+}
+
+async function uploadFile(file) {
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (!ALLOWED.includes(ext)) return setStatus(`${file.name}: only PDF, HTML, Markdown or TXT files are supported.`, "err");
+  if (file.size > MAX_MB * 1024 * 1024) return setStatus(`${file.name} is larger than ${MAX_MB} MB.`, "err");
+
+  setStatus(`Reading, chunking and embedding ${file.name}… (large files can take a minute)`, "busy");
+  drop.classList.add("busy");
+  try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(file.name) },
+      body: file,
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+    await refreshUploads();
+    setScope("uploads");
+    setStatus(`Added "${d.title}" (${d.chunks} chunk${d.chunks === 1 ? "" : "s"} in ${d.seconds}s). Search is now set to your uploads; ask a question below.`, "ok");
+    input.focus();
+  } catch (e) {
+    setStatus(`Upload failed: ${e.message}`, "err");
+  } finally {
+    drop.classList.remove("busy");
+    fileInput.value = "";
+  }
+}
+
+async function removeUpload(d) {
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(d.doc_id)}`, { method: "DELETE" });
+    if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+    setStatus(`Removed "${d.title}".`, "ok");
+  } catch (e) {
+    setStatus(`Could not remove ${d.title}: ${e.message}`, "err");
+  }
+  refreshUploads();
+}
+
+document.getElementById("uploadBtn").addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => fileInput.files[0] && uploadFile(fileInput.files[0]));
+for (const ev of ["dragenter", "dragover"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); });
+for (const ev of ["dragleave", "drop"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); });
+drop.addEventListener("drop", (e) => e.dataTransfer.files[0] && uploadFile(e.dataTransfer.files[0]));
+
+refreshUploads();

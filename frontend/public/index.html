@@ -10,12 +10,27 @@
   <header class="top">
     <div>
       <h1>Police Complaints Assistant</h1>
-      <p class="sub">Answers from 10 documents on FIRs, Zero FIR, arrest safeguards, custodial deaths and Police Complaints Authorities, with citations.</p>
+      <p class="sub">Answers from 10 documents on FIRs, Zero FIR, arrest safeguards, custodial deaths and Police Complaints Authorities, plus any files you upload, with citations.</p>
     </div>
     <button id="infoBtn" class="ghost" type="button" aria-expanded="false">About the system</button>
   </header>
 
   <section id="infoPanel" class="info" hidden></section>
+
+  <section class="docs" aria-label="Your documents">
+    <div id="drop" class="drop">
+      <input type="file" id="file" accept=".pdf,.html,.htm,.md,.markdown,.txt" hidden>
+      <button type="button" id="uploadBtn" class="ghost">Upload a document</button>
+      <span class="hint">PDF, HTML, Markdown or TXT, up to 10 MB. You can also drop a file here.</span>
+    </div>
+    <p id="uploadStatus" class="status" role="status"></p>
+    <ul id="uploads" class="uploads"></ul>
+    <div class="scope" role="radiogroup" aria-label="Search in">
+      <span>Search in:</span>
+      <label><input type="radio" name="scope" value="all" checked> All documents</label>
+      <label><input type="radio" name="scope" value="uploads" id="scopeUploads" disabled> My uploads only</label>
+    </div>
+  </section>
 
   <main id="chat" aria-live="polite">
     <div class="empty" id="empty">
@@ -31,7 +46,7 @@
   </main>
 
   <form id="ask" class="ask" autocomplete="off">
-    <input id="q" name="q" placeholder="Ask about police complaints, FIRs, arrests…" maxlength="1000" required>
+    <input id="q" name="q" placeholder="Ask about police complaints, FIRs, arrests, or your uploaded files…" maxlength="1000" required>
     <button id="send" type="submit">Ask</button>
   </form>
   <p class="foot">General information from a practice corpus. This is not legal advice.</p>

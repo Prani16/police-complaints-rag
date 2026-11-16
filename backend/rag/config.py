@@ -23,6 +23,9 @@ class Settings:
     # ---- paths -------------------------------------------------------------
     raw_dir: Path = Path(_env("RAW_DIR", str(ROOT / "data" / "raw")))
     processed_dir: Path = Path(_env("PROCESSED_DIR", str(ROOT / "data" / "processed")))
+    # files uploaded through the UI are stored here and indexed on arrival
+    upload_dir: Path = Path(_env("UPLOAD_DIR", str(ROOT / "data" / "uploads")))
+    max_upload_mb: float = float(_env("MAX_UPLOAD_MB", "10"))
 
     # ---- chunking (Part 1) --------------------------------------------------
     chunk_max_tokens: int = int(_env("CHUNK_MAX_TOKENS", "400"))

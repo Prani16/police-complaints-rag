@@ -41,8 +41,18 @@ async function call(path, options = {}) {
   return body;
 }
 
-export const ask = (question, topK) =>
-  call("/api/query", { method: "POST", body: JSON.stringify({ question, top_k: topK }) });
+export const ask = (question, topK, scope = "all") =>
+  call("/api/query", { method: "POST", body: JSON.stringify({ question, top_k: topK, scope }) });
+
+// Upload = raw file bytes + URL-encoded file name in a header (no multipart).
+export const uploadFile = (bytes, encodedName) =>
+  call("/api/upload", {
+    method: "POST",
+    body: bytes,
+    headers: { "Content-Type": "application/octet-stream", "X-Filename": encodedName },
+  });
+export const documents = () => call("/api/documents");
+export const deleteDocument = (docId) => call(`/api/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
 export const info = () => call("/api/info");
 export const health = () => call("/health");
 export { BACKEND_URL };

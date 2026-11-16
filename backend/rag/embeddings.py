@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 # Qwen3-Embedding is instruction-aware: queries get a task instruction,
 # documents are embedded as-is (per the model card this adds ~1-5% retrieval).
 QUERY_INSTRUCTION = (
-    "Instruct: Given a question about filing police complaints, FIRs, arrests, custody "
-    "or police accountability in India, retrieve the passages that answer it\nQuery: "
+    "Instruct: Given a question, retrieve passages from the document collection that answer it "
+    "(the collection is mainly about police complaints and FIRs in India, plus user uploads)\nQuery: "
 )
 
 

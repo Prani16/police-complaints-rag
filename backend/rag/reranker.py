@@ -22,8 +22,7 @@ from .config import settings
 
 log = logging.getLogger(__name__)
 
-RERANK_INSTRUCTION = ("Given a question about police complaints, FIRs, arrest or custody "
-                      "in India, judge whether the passage contains information that answers it")
+RERANK_INSTRUCTION = "Given a question, judge whether the passage contains information that answers it"
 
 
 class Reranker:

@@ -21,6 +21,9 @@ from rag.loaders import load_directory  # noqa: E402
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     docs, failures = load_directory(settings.raw_dir)
+    if settings.upload_dir.exists():  # keep files uploaded through the UI
+        up_docs, up_fail = load_directory(settings.upload_dir)
+        docs, failures = docs + up_docs, failures + up_fail
     chunks = []
     for d in docs:
         chunks.extend(chunk_document(d, settings.chunk_max_tokens,

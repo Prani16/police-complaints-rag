@@ -35,12 +35,13 @@ def diversify(cands: list, k: int, max_per_doc: int) -> list:
     return picked + rest[:k - len(picked)]
 
 
-def answer(question: str, top_k: int | None = None) -> dict:
+def answer(question: str, top_k: int | None = None, doc_ids: list[str] | None = None) -> dict:
+    """doc_ids=None searches every document; a list limits the search to those."""
     top_k = top_k or settings.final_k
     timings: dict[str, float] = {}
 
     t = time.perf_counter()
-    cands = get_retriever().retrieve(question)
+    cands = get_retriever().retrieve(question, doc_ids=doc_ids)
     timings["retrieve_ms"] = (time.perf_counter() - t) * 1000
 
     t = time.perf_counter()

@@ -12,8 +12,15 @@ before(async () => {
     req.on("data", (d) => (body += d));
     req.on("end", () => {
       res.setHeader("Content-Type", "application/json");
+      if (req.url === "/api/upload") {
+        return res.end(JSON.stringify({ doc_id: "upload_x", name: decodeURIComponent(req.headers["x-filename"]),
+          bytes: Buffer.byteLength(body), type: req.headers["content-type"] }));
+      }
+      if (req.url === "/api/documents") return res.end(JSON.stringify([{ doc_id: "upload_x", uploaded: true }]));
+      if (req.url === "/api/documents/upload_x" && req.method === "DELETE") return res.end(JSON.stringify({ deleted: "upload_x" }));
       if (req.url === "/api/query") {
-        const { question } = JSON.parse(body);
+        const { question, scope } = JSON.parse(body);
+        if (question.includes("scope?")) return res.end(JSON.stringify({ answer: `scope=${scope}`, sources: [], models: {}, timings_ms: {} }));
         if (question.includes("boom")) { res.statusCode = 502; return res.end(JSON.stringify({ detail: "Gemini error" })); }
         return res.end(JSON.stringify({ answer: `echo: ${question} [1]`, found: true, sources: [{ n: 1, cited: true }],
           models: { llm: "fake" }, timings_ms: { retrieve_ms: 1, rerank_ms: 1, generate_ms: 1 } }));
@@ -55,4 +62,34 @@ test("surfaces backend errors", async () => {
 test("serves the UI and health check", async () => {
   assert.equal((await fetch(`${base}/`)).status, 200);
   assert.equal((await (await fetch(`${base}/healthz`)).json()).backend.status, "ok");
+});
+
+test("forwards uploads as raw bytes with the encoded file name", async () => {
+  const r = await fetch(`${base}/api/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent("my notes (1).md") },
+    body: "# Hello\nsome text",
+  });
+  assert.equal(r.status, 200);
+  const d = await r.json();
+  assert.equal(d.name, "my notes (1).md");
+  assert.equal(d.bytes, 17);
+  assert.equal(d.type, "application/octet-stream");
+});
+
+test("lists and deletes documents, passes the search scope", async () => {
+  assert.equal((await (await fetch(`${base}/api/documents`)).json())[0].doc_id, "upload_x");
+  assert.equal((await fetch(`${base}/api/documents/upload_x`, { method: "DELETE" })).status, 200);
+  const d = await (await post("which scope?")).json();
+  assert.equal(d.answer, "scope=all");
+  const r = await fetch(`${base}/api/ask`, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question: "which scope?", scope: "uploads" }) });
+  assert.equal((await r.json()).answer, "scope=uploads");
+});
+
+test("rejects uploads over the size limit with a JSON error", async () => {
+  const big = Buffer.alloc(11 * 1024 * 1024, 97);
+  const r = await fetch(`${base}/api/upload`, { method: "POST", headers: { "X-Filename": "big.txt" }, body: big });
+  assert.equal(r.status, 413);
+  assert.match((await r.json()).error, /larger than/);
 });

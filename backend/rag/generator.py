@@ -20,8 +20,10 @@ from .config import settings
 
 log = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a careful assistant that explains police complaint procedures in India
-(FIR, Zero FIR, e-FIR, arrest safeguards, custodial deaths, Police Complaints Authorities, NHRC).
+SYSTEM_PROMPT = """You are a careful assistant that answers questions using only the documents provided.
+The built-in collection covers police complaint procedures in India (FIR, Zero FIR, e-FIR, arrest
+safeguards, custodial deaths, Police Complaints Authorities, NHRC); users may also upload their own
+documents on any topic.
 
 Rules:
 1. Answer ONLY from the numbered context passages. Do not use outside knowledge.
