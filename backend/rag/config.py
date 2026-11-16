@@ -26,6 +26,10 @@ class Settings:
     # files uploaded through the UI are stored here and indexed on arrival
     upload_dir: Path = Path(_env("UPLOAD_DIR", str(ROOT / "data" / "uploads")))
     max_upload_mb: float = float(_env("MAX_UPLOAD_MB", "10"))
+    # evaluation results shown on the admin dashboard
+    eval_results_dir: Path = Path(_env("EVAL_RESULTS_DIR", str(ROOT / "eval" / "results")))
+    # admin dashboard password; empty = admin features disabled
+    admin_password: str = _env("ADMIN_PASSWORD", "")
 
     # ---- chunking (Part 1) --------------------------------------------------
     chunk_max_tokens: int = int(_env("CHUNK_MAX_TOKENS", "400"))

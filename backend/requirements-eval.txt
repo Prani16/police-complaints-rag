@@ -1,0 +1,6 @@
+# Extra packages for the RAGAS evaluation (python -m scripts.ragas_eval).
+# Not needed to run the app, so they are kept out of requirements.txt / the image.
+-r requirements.txt
+ragas>=0.4.4,<0.5
+openai>=1.40
+instructor

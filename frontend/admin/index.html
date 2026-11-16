@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>RAG Evaluation · Admin</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="viz-root">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Admin · Evaluation dashboard</p>
+      <h1>Police Complaints RAG: quality report</h1>
+      <p class="sub" id="runMeta">Loading the latest evaluation run…</p>
+    </div>
+    <a class="back" href="/">Open the assistant ↗</a>
+  </header>
+
+  <div id="empty" class="notice" hidden></div>
+
+  <main id="dash" hidden>
+    <section aria-labelledby="h-kpi">
+      <h2 id="h-kpi">Headline metrics</h2>
+      <div class="kpi-groups" id="kpis"></div>
+    </section>
+
+    <section aria-labelledby="h-strat">
+      <div class="section-head">
+        <h2 id="h-strat">Retrieval strategies</h2>
+        <p class="note">Same <span data-k></span> cut-off for every strategy. A chunk counts as relevant when it comes from a ground-truth document <em>and</em> contains an evidence phrase. <b>Final context</b> is what Gemini actually sees, after reranking and the max-2-chunks-per-document rule.</p>
+      </div>
+      <div class="multiples" id="strategies"></div>
+    </section>
+
+    <section aria-labelledby="h-ragas">
+      <div class="section-head">
+        <h2 id="h-ragas">RAGAS generation &amp; context metrics</h2>
+        <p class="note" id="ragasNote"></p>
+      </div>
+      <div id="ragasBars" class="hbars"></div>
+    </section>
+
+    <section aria-labelledby="h-trend" id="trendSection" hidden>
+      <div class="section-head">
+        <h2 id="h-trend">Across runs</h2>
+        <p class="note">Hit rate and answer correctness for the last runs. Hover a point for details.</p>
+      </div>
+      <div id="trend" class="trend"></div>
+    </section>
+
+    <section aria-labelledby="h-cat">
+      <h2 id="h-cat">By question type</h2>
+      <div class="table-wrap"><table id="catTable" class="grid"></table></div>
+    </section>
+
+    <section aria-labelledby="h-q">
+      <div class="section-head">
+        <h2 id="h-q">Every question</h2>
+        <p class="note">Click a row to compare the answer with the ground truth and see which retrieved chunks were relevant.</p>
+      </div>
+      <div class="filters">
+        <label>Show
+          <select id="qFilter">
+            <option value="all">all questions</option>
+            <option value="weak">weak answers (correctness &lt; 0.5 or faithfulness &lt; 0.7)</option>
+            <option value="miss">retrieval misses (hit = 0)</option>
+            <option value="oos">out-of-scope questions</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-wrap"><table id="qTable" class="grid qgrid"></table></div>
+    </section>
+
+    <section aria-labelledby="h-cfg">
+      <h2 id="h-cfg">Run configuration</h2>
+      <dl id="config" class="config"></dl>
+    </section>
+  </main>
+
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+  <script src="admin.js" type="module"></script>
+</body>
+</html>

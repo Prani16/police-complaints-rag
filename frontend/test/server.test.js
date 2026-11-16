@@ -12,6 +12,10 @@ before(async () => {
     req.on("data", (d) => (body += d));
     req.on("end", () => {
       res.setHeader("Content-Type", "application/json");
+      if (req.url === "/api/admin/eval") {
+        if (req.headers["x-admin-key"] !== "pw") { res.statusCode = 401; return res.end(JSON.stringify({ detail: "Wrong admin key." })); }
+        return res.end(JSON.stringify({ latest: { summary: { "hit@k": 0.9 } }, history: [] }));
+      }
       if (req.url === "/api/upload") {
         return res.end(JSON.stringify({ doc_id: "upload_x", name: decodeURIComponent(req.headers["x-filename"]),
           bytes: Buffer.byteLength(body), type: req.headers["content-type"] }));
@@ -31,6 +35,7 @@ before(async () => {
   });
   await new Promise((r) => fake.listen(0, r));
   process.env.BACKEND_URL = `http://127.0.0.1:${fake.address().port}`;
+  process.env.ADMIN_PASSWORD = "pw";
   const { default: app } = await import("../server.js");
   server = app.listen(0);
   await new Promise((r) => server.once("listening", r));
@@ -92,4 +97,23 @@ test("rejects uploads over the size limit with a JSON error", async () => {
   const r = await fetch(`${base}/api/upload`, { method: "POST", headers: { "X-Filename": "big.txt" }, body: big });
   assert.equal(r.status, 413);
   assert.match((await r.json()).error, /larger than/);
+});
+
+const basic = (u, p) => ({ Authorization: `Basic ${Buffer.from(`${u}:${p}`).toString("base64")}` });
+
+test("admin dashboard needs the admin password", async () => {
+  const anon = await fetch(`${base}/admin/`);
+  assert.equal(anon.status, 401);
+  assert.match(anon.headers.get("www-authenticate"), /Basic/);
+  assert.equal((await fetch(`${base}/admin/`, { headers: basic("admin", "wrong") })).status, 401);
+  assert.equal((await fetch(`${base}/admin/api/eval`)).status, 401);
+  const ok = await fetch(`${base}/admin/`, { headers: basic("admin", "pw") });
+  assert.equal(ok.status, 200);
+  assert.match(await ok.text(), /quality report/);
+  const data = await (await fetch(`${base}/admin/api/eval`, { headers: basic("admin", "pw") })).json();
+  assert.equal(data.latest.summary["hit@k"], 0.9);
+});
+
+test("the user page does not link to the admin area", async () => {
+  assert.doesNotMatch(await (await fetch(`${base}/`)).text(), /admin/i);
 });

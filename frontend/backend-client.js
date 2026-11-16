@@ -52,6 +52,9 @@ export const uploadFile = (bytes, encodedName) =>
     headers: { "Content-Type": "application/octet-stream", "X-Filename": encodedName },
   });
 export const documents = () => call("/api/documents");
+// Admin: the backend checks X-Admin-Key against its own ADMIN_PASSWORD.
+export const adminEval = () =>
+  call("/api/admin/eval", { headers: { "X-Admin-Key": process.env.ADMIN_PASSWORD || "" } });
 export const deleteDocument = (docId) => call(`/api/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
 export const info = () => call("/api/info");
 export const health = () => call("/health");

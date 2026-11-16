@@ -113,11 +113,43 @@ Run it with the real Qwen3 models to get the numbers for your write-up.
 
 ---
 
+## Evaluation with RAGAS + admin dashboard
+
+`eval/ragas_testset.jsonl` has **22 questions with ground-truth answers** written from the 10 documents. Each one lists its relevant documents and the evidence phrases that make a chunk relevant. There are also **5 out-of-scope questions** the system must refuse.
+
+```bash
+cd backend
+pip install -r requirements-eval.txt     # once: RAGAS and its dependencies
+# stop uvicorn first: the evaluation needs the local Qdrant folder to itself
+python -m scripts.ragas_eval              # full run, writes eval/results/latest.json
+python -m scripts.ragas_eval --limit 5    # quick smoke run
+python -m scripts.ragas_eval --no-ragas   # retrieval metrics only, no judge calls
+```
+
+| Metric | How it is computed |
+|---|---|
+| **Hit rate@k** | 1 if any relevant chunk is in the top k (k = 5) |
+| **MRR@k** | 1 / rank of the first relevant chunk |
+| **Precision@k** | relevant chunks in the top k ÷ k |
+| **Recall@k** | relevant chunks in the top k ÷ all relevant chunks in the corpus |
+| **Context precision** (RAGAS) | LLM judge: are passages useful for the reference ranked near the top? |
+| **Context recall** (RAGAS) | LLM judge: share of the reference's claims found in the passages |
+| **Faithfulness** (RAGAS) | LLM judge: share of the answer's claims supported by the passages |
+| **Answer relevancy** (RAGAS) | questions generated from the answer, compared with the real question by embedding similarity |
+| **Answer correctness** (RAGAS) | factual overlap with the ground truth plus semantic similarity |
+| Refusal rate / wrongly refused | out-of-scope questions refused / in-scope questions refused |
+
+The four retrieval metrics are computed for **dense, BM25, hybrid, hybrid + reranker, and the final context** sent to Gemini, so you can see what each stage adds. A chunk is relevant if it comes from a ground-truth document **and** contains an evidence phrase. Precision@5 is capped by how many relevant chunks exist: a question with one relevant chunk can score at most 0.2.
+
+**The judge** is Gemini, called through its OpenAI-compatible endpoint with your normal `GEMINI_API_KEY`. RAGAS needs no key of its own. Set `RAGAS_JUDGE_MODEL=gemini-3.8-flash` for a stronger judge than the model being evaluated. The two embedding-based metrics use the local Qwen3 embedder. A full run makes roughly 10 judge calls per question; lower `--concurrency` if you hit rate limits.
+
+**Admin dashboard:** set `ADMIN_PASSWORD` in `.env`, restart both servers, then open **http://localhost:3000/admin** and log in as `admin`. It is not linked from the user interface. The page shows stat tiles for every metric, small-multiple bars comparing the retrieval strategies, the RAGAS scores, a trend across runs, a breakdown by question type, and a table of every question. Click a row to compare the system's answer with the ground truth and see which retrieved chunks were relevant. Every run is also saved in `eval/results/history/`.
+
 ## Deploy to GCP
 
 ```bash
 gcloud auth login
-PROJECT_ID=<your-project> ./deploy/setup_gcp.sh    # one time: APIs, Artifact Registry, service accounts, Gemini secret
+PROJECT_ID=<your-project> ./deploy/setup_gcp.sh    # one time: APIs, Artifact Registry, service accounts, Gemini + admin secrets
 PROJECT_ID=<your-project> ./deploy/deploy.sh       # Cloud Build -> both images -> Cloud Run
 ```
 
@@ -154,6 +186,7 @@ Uploaded files are stored in `data/uploads/` (git-ignored) and their chunks in `
 | `GET` | `/api/info` | models, vector store, documents with chunk counts |
 | `POST` | `/api/query` | `{"question": "...", "top_k": 5, "scope": "all" \| "uploads"}` → `{answer, found, sources[n, cited, title, section, pages, text, rerank_score], models, timings_ms}` |
 | `POST` | `/api/upload` | raw file bytes, URL-encoded name in `X-Filename` → `{doc_id, title, type, chunks, seconds}` |
+| `GET` | `/api/admin/eval` | evaluation results; needs header `X-Admin-Key` = `ADMIN_PASSWORD` (the Node `/admin` area adds it after login) |
 | `GET` | `/api/documents` | every indexed document, with `uploaded: true/false` |
 | `DELETE` | `/api/documents/{doc_id}` | remove an uploaded document (built-in documents can't be removed) |
 

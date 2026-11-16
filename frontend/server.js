@@ -1,10 +1,12 @@
 // Node.js web frontend: serves the chat UI and proxies questions to the
 // Python RAG API. The browser only ever talks to this server, so the backend
 // URL and auth stay server-side.
+import "./env.js"; // must come first: loads ../.env into process.env
+import crypto from "node:crypto";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ask, info, health, uploadFile, documents, deleteDocument, BACKEND_URL } from "./backend-client.js";
+import { ask, info, health, uploadFile, documents, deleteDocument, adminEval, BACKEND_URL } from "./backend-client.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -42,6 +44,37 @@ app.post("/api/ask", async (req, res) => {
     res.status(e.status || 502).json({ error: e.message });
   }
 });
+
+// ------------------------------------------------------------------ admin
+// The evaluation dashboard lives at /admin. It is not linked from the user UI
+// and needs HTTP Basic auth: user ADMIN_USER (default "admin"), password
+// ADMIN_PASSWORD. Without ADMIN_PASSWORD the whole admin area is disabled.
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const sameSecret = (a, b) => {
+  const h = (x) => crypto.createHash("sha256").update(String(x)).digest();
+  return crypto.timingSafeEqual(h(a), h(b));
+};
+function requireAdmin(req, res, next) {
+  const pw = process.env.ADMIN_PASSWORD;
+  if (!pw) return res.status(503).type("text").send("Admin dashboard is disabled. Set ADMIN_PASSWORD in .env and restart.");
+  const [scheme, value] = (req.get("authorization") || "").split(" ");
+  if (scheme === "Basic" && value) {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    const i = decoded.indexOf(":");
+    if (i > -1 && sameSecret(decoded.slice(0, i), ADMIN_USER) && sameSecret(decoded.slice(i + 1), pw)) return next();
+  }
+  res.set("WWW-Authenticate", 'Basic realm="RAG admin", charset="UTF-8"').status(401).type("text").send("Admin login required.");
+}
+
+app.get("/admin/api/eval", requireAdmin, async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    res.json(await adminEval());
+  } catch (e) {
+    res.status(e.status || 502).json({ error: e.message });
+  }
+});
+app.use("/admin", requireAdmin, express.static(path.join(__dirname, "admin"), { index: "index.html" }));
 
 const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 10);
 

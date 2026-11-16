@@ -25,6 +25,8 @@ RUN python -c "from huggingface_hub import snapshot_download as d; d('${EMBED_MO
 
 COPY backend /app/backend
 COPY data/raw /app/data/raw
+# evaluation results for the admin dashboard (run scripts.ragas_eval before deploying)
+COPY eval /app/eval
 WORKDIR /app/backend
 
 # Part 1 + Part 2 at build time -> index baked into the image.

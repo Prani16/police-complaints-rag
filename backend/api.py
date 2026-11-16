@@ -9,16 +9,19 @@ Endpoints
   POST   /api/upload             raw file bytes, filename in the X-Filename header
   GET    /api/documents          every indexed document (built-in + uploads)
   DELETE /api/documents/{doc_id} remove an uploaded document
+  GET    /api/admin/eval         evaluation results (needs X-Admin-Key = ADMIN_PASSWORD)
 """
 from __future__ import annotations
 
+import hmac
+import json
 import logging
 from collections import Counter
 from contextlib import asynccontextmanager
 from typing import Literal
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -138,3 +141,29 @@ def delete_document(doc_id: str):
     except UploadError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"deleted": doc_id}
+
+
+# --------------------------------------------------------------------------- admin
+def _check_admin(key: str | None) -> None:
+    if not settings.admin_password:
+        raise HTTPException(status_code=403, detail="Admin is disabled: set ADMIN_PASSWORD.")
+    if not key or not hmac.compare_digest(key.encode(), settings.admin_password.encode()):
+        raise HTTPException(status_code=401, detail="Wrong admin key.")
+
+
+@app.get("/api/admin/eval")
+def admin_eval(x_admin_key: str | None = Header(default=None)):
+    """Latest evaluation run plus a short summary of earlier runs (for trends)."""
+    _check_admin(x_admin_key)
+    d = settings.eval_results_dir
+    latest = d / "latest.json"
+    history = []
+    for f in sorted((d / "history").glob("run-*.json"))[-20:]:
+        try:
+            r = json.loads(f.read_text(encoding="utf-8"))
+            history.append({"file": f.name, "created_at": r.get("created_at"), "summary": r.get("summary", {}),
+                            "config": {k: r.get("config", {}).get(k) for k in ("reranker", "llm", "k")}})
+        except (OSError, ValueError):
+            continue
+    return {"latest": json.loads(latest.read_text(encoding="utf-8")) if latest.exists() else None,
+            "history": history}

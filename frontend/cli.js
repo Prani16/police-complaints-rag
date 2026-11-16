@@ -7,6 +7,7 @@
 //   BACKEND_URL=https://<cloud-run-url> node cli.js
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import "./env.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ask, uploadFile, BACKEND_URL } from "./backend-client.js";

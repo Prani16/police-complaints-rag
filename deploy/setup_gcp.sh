@@ -35,6 +35,17 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
   --member="serviceAccount:rag-backend-sa@$PROJECT_ID.iam.gserviceaccount.com" \
   --role=roles/secretmanager.secretAccessor >/dev/null
 
+echo "==> Admin dashboard password -> Secret Manager (secret: admin-password)"
+if ! gcloud secrets describe admin-password >/dev/null 2>&1; then
+  read -r -s -p "Choose a password for the /admin evaluation dashboard: " APW; echo
+  printf '%s' "$APW" | gcloud secrets create admin-password --data-file=- --replication-policy=automatic
+fi
+for sa in rag-backend-sa rag-frontend-sa; do
+  gcloud secrets add-iam-policy-binding admin-password \
+    --member="serviceAccount:$sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role=roles/secretmanager.secretAccessor >/dev/null
+done
+
 echo "==> Permissions for Cloud Build (deploys to Cloud Run)"
 # Newer projects run Cloud Build as the Compute default SA, older ones as the
 # legacy Cloud Build SA - grant both so either works.

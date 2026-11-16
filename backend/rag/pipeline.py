@@ -74,6 +74,7 @@ def answer(question: str, top_k: int | None = None, doc_ids: list[str] | None = 
             "title": ch["title"], "section": ch["section"], "pages": ch["pages"],
             "text": ch["text"], "rerank_score": c.rerank, "rrf_score": round(c.rrf, 5),
             "dense_rank": c.dense_rank, "sparse_rank": c.sparse_rank,
+            "chunk_id": ch["chunk_id"], "doc_id": ch["doc_id"],
         })
     return {
         "question": question,
